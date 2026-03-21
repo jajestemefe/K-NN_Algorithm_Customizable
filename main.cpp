@@ -1,0 +1,229 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <cmath>
+#include <valarray>
+#include <algorithm>
+#include <map>
+
+using namespace std;
+
+struct Sample
+{
+    vector<double> attributes;
+    string label;
+};
+
+auto getSamples(vector<Sample>& dataset, ifstream& file)-> void
+{
+    string line;
+
+    while (getline(file, line))
+    {
+        vector<string> row;
+        stringstream ss(line);
+        string token;
+
+        while (ss >> token)
+        {
+            row.push_back(token);
+        }
+
+        Sample sample;
+
+        for (auto i = 0; i < row.size()-1; i++)
+        {
+            sample.attributes.push_back(stod(row.at(i)));
+        }
+        sample.label = row.back();
+
+        dataset.push_back(sample);
+    }
+}
+
+auto getDistance(const vector<double>& first, const vector<double>& second) -> double
+{
+    if (first.size() != second.size()) return -1;
+
+    double distance = 0;
+
+    for (auto i = 0; i < first.size(); i++)
+    {
+        distance += pow((first[i]) - (second[i]), 2);
+    }
+    distance = sqrt(distance);
+    return distance;
+}
+
+auto normalize(vector<Sample>& values, const vector<Sample>& trainingValues)-> void
+{
+    const auto datasize = trainingValues.at(0).attributes.size();
+    for (auto i = 0; i < datasize; i++)
+    {
+        auto min = trainingValues.front().attributes.at(i);
+        auto max = trainingValues.front().attributes.at(i);
+
+        for (const auto &[attributes, label] : trainingValues)
+        {
+            if (min > attributes.at(i)) min = attributes.at(i);
+            if (max < attributes.at(i)) max = attributes.at(i);
+        }
+
+        for (auto& [attributes, label] : values)
+        {
+            attributes.at(i) -= min;
+            attributes.at(i) /= (max - min);
+        }
+    }
+}
+
+auto getPrediction(const int& k, const vector<double>& test, const vector<Sample>& train)-> string
+{
+    vector<vector<double>> distancesWithIndices;
+
+    for (auto i = 0; i < train.size(); i++)
+    {
+        distancesWithIndices.push_back({getDistance(test, train.at(i).attributes), static_cast<double>(i)});
+    }
+
+    ranges::sort(distancesWithIndices, [](const vector<double>& a, const vector<double>& b)
+    {
+        return a[0] < b[0];
+    });
+
+    distancesWithIndices.resize(k);
+
+    map<string, int> decisionMap;
+    for (auto i = 0; i < k; i++)
+    {
+        decisionMap[train.at(static_cast<int>(distancesWithIndices.at(i).at(1))).label]++;
+    }
+
+    string prediction;
+    auto max = 0;
+
+    for (const auto& [key, value] : decisionMap)
+    {
+        if (value > max)
+        {
+            max = value;
+            prediction = key;
+        }
+    }
+
+    return prediction;
+}
+
+auto getK()-> int
+{
+    int k;
+
+    cout << "Please provide the 'k' value\n";
+    cout << "\n>>>";
+    while (!(cin >> k) || k <= 0)
+    {
+        cout << ">>>";
+        cout << "'k' value must be a positive integer\n";
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(),'\n');
+    }
+    return k;
+}
+
+auto computeKNN(vector<Sample> trainingValues, const string& testingPath)-> void
+{
+    const int k = getK();
+
+    ifstream testingFile(testingPath);
+    vector<Sample> testingValues;
+    getSamples(testingValues, testingFile);
+
+    normalize(testingValues, trainingValues);
+    normalize(trainingValues,trainingValues);
+
+    auto count = 0;
+
+    for (const auto &[attributes, label] : testingValues)
+    {
+        string prediction = getPrediction(k, attributes, trainingValues);
+
+        if (label == prediction)
+        {
+            count++;
+        }
+    }
+
+    auto accuracy = static_cast<float>(count * 100. / static_cast<float>(testingValues.size()));
+    cout << count << "/" << testingValues.size() << " correct result" << endl;
+    cout << "ACCURACY: %" << accuracy << endl;
+}
+
+auto userKNN(vector<Sample> trainingValues)-> void
+{
+    vector<Sample> userValues = {{}};
+    double input;
+
+    for (auto i = 0; i < trainingValues.at(0).attributes.size(); i++)
+    {
+        cout << "User attributes[";
+        for (auto j = 0; j < trainingValues.at(0).attributes.size(); j++)
+        {
+            if (j == i) cout << "( ? )";
+            else if (userValues.at(0).attributes.size() > j) cout << "( " << userValues.at(0).attributes.at(j) << " )";
+            else cout << "( X )";
+        }
+        cout << "]" << endl;
+        if (userValues.at(0).attributes.size() == trainingValues.at(0).attributes.size())continue;
+        cout << ">>>";
+        cin >> input;
+        userValues.at(0).attributes.push_back(static_cast<double>(input));
+    }
+
+    userValues.at(0).label = "unknown";
+
+    normalize(userValues, trainingValues);
+    normalize(trainingValues, trainingValues);
+
+    const int k = getK();
+
+    const string prediction = getPrediction(k, userValues.at(0).attributes, trainingValues);
+    cout << prediction << endl;
+}
+
+auto readInput()-> void
+{
+    string input;
+    cout << "=========== WELCOME TO THE K-NN PROJECT ===========" << "\n" <<endl;
+
+    const string trainingPath = "../iris_training.txt";
+    const string testingPath = "../iris_test.txt";
+
+    ifstream trainingFile(trainingPath);
+    vector<Sample> trainingValues;
+    getSamples(trainingValues, trainingFile);
+
+    while (true)
+    {
+        cout << ">>>";
+
+        cin >> input;
+
+        if (input == "test") computeKNN(trainingValues, testingPath);
+        else if (input == "stop")return;
+        else if (input == "knn")userKNN(trainingValues);
+        else if (input == "help")
+        {
+            cout << "'test' to perform K-NN on the test file" << endl;
+            cout << "'knn' to perform K-NN on your sample" << endl;
+            cout << "'stop' to exit the program\n" << endl;
+        }
+        else cout << "Invalid input, 'help' for commands list" << endl;
+    }
+}
+
+auto main()-> int
+{
+    readInput();
+}

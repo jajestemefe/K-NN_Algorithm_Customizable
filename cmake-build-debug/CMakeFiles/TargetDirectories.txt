@@ -1,0 +1,3 @@
+C:/Users/efe_3/CLionProjects/NAI_Project_1/cmake-build-debug/CMakeFiles/NAI_Project_1.dir
+C:/Users/efe_3/CLionProjects/NAI_Project_1/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/efe_3/CLionProjects/NAI_Project_1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
