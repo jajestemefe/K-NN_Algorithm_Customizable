@@ -124,8 +124,8 @@ auto getK()-> int
     cout << "\n>>>";
     while (!(cin >> k) || k <= 0)
     {
-        cout << ">>>";
         cout << "'k' value must be a positive integer\n";
+        cout << ">>>";
         cin.clear();
         cin.ignore(numeric_limits<streamsize>::max(),'\n');
     }
@@ -177,7 +177,15 @@ auto userKNN(vector<Sample> trainingValues)-> void
         cout << "]" << endl;
         if (userValues.at(0).attributes.size() == trainingValues.at(0).attributes.size())continue;
         cout << ">>>";
-        cin >> input;
+
+        while (!(cin >> input) || input <= 0.)
+        {
+            cout << "All attributes must be positive numerical values\n";
+            cout << ">>>";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+
         userValues.at(0).attributes.push_back(static_cast<double>(input));
     }
 
