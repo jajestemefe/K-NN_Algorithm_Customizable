@@ -165,7 +165,7 @@ auto userKNN(vector<Sample> trainingValues)-> void
     vector<Sample> userValues = {{}};
     double input;
 
-    for (auto i = 0; i < trainingValues.at(0).attributes.size(); i++)
+    for (auto i = 0; i <= trainingValues.at(0).attributes.size(); i++)
     {
         cout << "User attributes[";
         for (auto j = 0; j < trainingValues.at(0).attributes.size(); j++)
