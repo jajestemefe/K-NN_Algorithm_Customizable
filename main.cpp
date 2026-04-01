@@ -377,6 +377,8 @@ auto readInput()-> void
         {
             cout << "'test' to perform K-NN on the test file" << endl;
             cout << "'knn' to perform K-NN on your sample" << endl;
+            cout << "'perc' to perform perceptron computation" << endl;
+            cout << "'cust' to perform perceptron computation on your sample" << endl;
             cout << "'stop' to exit the program\n" << endl;
         }
         else cout << "Invalid input, 'help' for commands list" << endl;
