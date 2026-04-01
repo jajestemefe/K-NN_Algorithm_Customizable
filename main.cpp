@@ -16,6 +16,84 @@ struct Sample
     string label;
 };
 
+struct Perceptron
+{
+    vector<double> weights;
+    double threshold;
+    double alpha;
+
+    explicit Perceptron(const vector<double> &W ={}, const double threshold = 0, const double alpha = 1)
+    {
+        weights = W;
+        this->threshold = threshold;
+        this->alpha = alpha;
+    }
+
+    auto deltaRule(const int d, const int y, const vector<double>& inputs)-> void
+    {
+        for (auto j = 0; j < inputs.size(); j++)
+        {
+            this->weights.at(j) += (d - y) * this->alpha * inputs.at(j);
+        }
+    }
+
+    [[nodiscard]] auto compute(const vector<double>& inputs) const -> int
+    {
+        auto y = 0;
+
+        double wTX = 0;
+        for (auto j = 0; j < this->weights.size(); j++)
+        {
+            wTX += this->weights.at(j) * inputs.at(j);
+        }
+
+        y = (wTX >= this->threshold) ? 1 : 0;
+
+        return y;
+    }
+
+    auto train(const vector<Sample>& trainingValues, const string& targetLabel)->void
+    {
+        auto correctPrediction = 0;
+        auto counter = 0;
+
+        while(correctPrediction < trainingValues.size() && counter < 500)
+        {
+            for (const auto & trainingValue : trainingValues)
+            {
+                const auto d = (trainingValue.label == targetLabel) ? 1 : 0;
+                vector<double> inputs = trainingValue.attributes;
+
+                const auto y = this->compute(inputs);
+
+                if (d == y)correctPrediction++;
+                else
+                {
+                    this->deltaRule(d,y,inputs);
+                    correctPrediction = 0;
+                }
+            }
+            counter++;
+        }
+    }
+
+    [[nodiscard]] auto test(const vector<Sample>& testingValues, const string& targetLabel) const-> int
+    {
+        auto counter = 0;
+        for (const auto& values : testingValues)
+        {
+            const int expected = (values.label == targetLabel) ? 1 : 0;
+            const int predicted = this->compute(values.attributes);
+
+            if (predicted == expected)
+            {
+                counter++;
+            }
+        }
+        return counter;
+    }
+};
+
 auto getSamples(vector<Sample>& dataset, ifstream& file)-> void
 {
     string line;
@@ -155,7 +233,7 @@ auto computeKNN(vector<Sample> trainingValues, const string& testingPath)-> void
         }
     }
 
-    auto accuracy = static_cast<float>(count * 100. / static_cast<float>(testingValues.size()));
+    const auto accuracy = static_cast<float>(count * 100. / static_cast<float>(testingValues.size()));
     cout << count << "/" << testingValues.size() << " correct result" << endl;
     cout << "ACCURACY: %" << accuracy << endl;
 }
@@ -200,6 +278,78 @@ auto userKNN(vector<Sample> trainingValues)-> void
     cout << prediction << endl;
 }
 
+auto perceptron(vector<Sample> trainingValues, const string& targetLabel)-> void
+{
+    ifstream testingFile("../iris_test.txt");
+    vector<Sample> testingValues;
+    getSamples(testingValues, testingFile);
+
+    normalize(testingValues, trainingValues);
+    normalize(trainingValues, trainingValues);
+
+    Perceptron perceptron;
+    perceptron.weights.resize(trainingValues.at(0).attributes.size());
+
+    perceptron.train(trainingValues, targetLabel);
+
+    cout << "the perceptron is trained, performing test\n" << endl;
+
+    auto counter = perceptron.test(testingValues, targetLabel);
+
+    const auto accuracy = static_cast<float>(counter * 100. / static_cast<float>(testingValues.size()));
+    cout << counter << "/" << testingValues.size() << " correct result" << endl;
+    cout << "ACCURACY: %" << accuracy << endl;
+}
+
+auto userPerceptron(vector<Sample> trainingValues, const string& targetLabel)-> void
+{
+    vector<Sample> userValues = {{}};
+    double input;
+
+    for (auto i = 0; i <= trainingValues.at(0).attributes.size(); i++)
+    {
+        cout << "User attributes[";
+        for (auto j = 0; j < trainingValues.at(0).attributes.size(); j++)
+        {
+            if (j == i) cout << "( ? )";
+            else if (userValues.at(0).attributes.size() > j) cout << "( " << userValues.at(0).attributes.at(j) << " )";
+            else cout << "( X )";
+        }
+        cout << "]" << endl;
+        if (userValues.at(0).attributes.size() == trainingValues.at(0).attributes.size())continue;
+        cout << ">>>";
+
+        while (!(cin >> input) || input <= 0.)
+        {
+            cout << "All attributes must be positive numerical values\n";
+            cout << ">>>";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        }
+
+        userValues.at(0).attributes.push_back(static_cast<double>(input));
+    }
+
+    userValues.at(0).label = "unknown";
+
+    normalize(userValues, trainingValues);
+    normalize(trainingValues, trainingValues);
+
+    Perceptron perceptron;
+    perceptron.weights.resize(trainingValues.at(0).attributes.size());
+
+    perceptron.train(trainingValues, targetLabel);
+
+    auto output = perceptron.compute(userValues.at(0).attributes);
+
+    if (output == 1)
+    {
+        cout << targetLabel << endl;
+    }
+    else cout << "not-" << targetLabel << endl;
+    cout << endl;
+}
+
 auto readInput()-> void
 {
     string input;
@@ -221,6 +371,8 @@ auto readInput()-> void
         if (input == "test") computeKNN(trainingValues, testingPath);
         else if (input == "stop")return;
         else if (input == "knn")userKNN(trainingValues);
+        else if (input == "perc")perceptron(trainingValues, "Iris-setosa");
+        else if (input == "cust")userPerceptron(trainingValues, "Iris-setosa");
         else if (input == "help")
         {
             cout << "'test' to perform K-NN on the test file" << endl;
