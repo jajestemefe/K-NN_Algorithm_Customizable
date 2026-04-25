@@ -4,9 +4,9 @@
 #include <vector>
 #include <sstream>
 #include <cmath>
-#include <valarray>
 #include <algorithm>
 #include <map>
+#include <limits>
 
 using namespace std;
 
@@ -113,7 +113,9 @@ auto getSamples(vector<Sample>& dataset, ifstream& file)-> void
 
         for (auto i = 0; i < row.size()-1; i++)
         {
-            sample.attributes.push_back(stod(row.at(i)));
+            string numericToken = row.at(i);
+            replace(numericToken.begin(), numericToken.end(), ',', '.');
+            sample.attributes.push_back(stod(numericToken));
         }
         sample.label = row.back();
 
@@ -137,6 +139,8 @@ auto getDistance(const vector<double>& first, const vector<double>& second) -> d
 
 auto normalize(vector<Sample>& values, const vector<Sample>& trainingValues)-> void
 {
+    if (trainingValues.empty()) return;
+
     const auto datasize = trainingValues.at(0).attributes.size();
     for (auto i = 0; i < datasize; i++)
     {
@@ -149,10 +153,13 @@ auto normalize(vector<Sample>& values, const vector<Sample>& trainingValues)-> v
             if (max < attributes.at(i)) max = attributes.at(i);
         }
 
+        const double range = max - min;
+        if (range == 0.0) continue;
+
         for (auto& [attributes, label] : values)
         {
             attributes.at(i) -= min;
-            attributes.at(i) /= (max - min);
+            attributes.at(i) /= range;
         }
     }
 }
@@ -210,13 +217,38 @@ auto getK()-> int
     return k;
 }
 
+auto getValidK(const size_t trainingSize) -> int
+{
+    int k = getK();
+    while (k > static_cast<int>(trainingSize))
+    {
+        cout << "'k' value cannot be greater than training sample count (" << trainingSize << ")\n";
+        cout << "Please provide the 'k' value\n>>>";
+        cin >> k;
+        while (!cin || k <= 0)
+        {
+            cout << "'k' value must be a positive integer\n>>>";
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            cin >> k;
+        }
+    }
+    return k;
+}
+
 auto computeKNN(vector<Sample> trainingValues, const string& testingPath)-> void
 {
-    const int k = getK();
-
     ifstream testingFile(testingPath);
     vector<Sample> testingValues;
     getSamples(testingValues, testingFile);
+
+    if (trainingValues.empty() || testingValues.empty())
+    {
+        cout << "Training or testing dataset is empty.\n";
+        return;
+    }
+
+    const int k = getValidK(trainingValues.size());
 
     normalize(testingValues, trainingValues);
     normalize(trainingValues,trainingValues);
@@ -240,6 +272,12 @@ auto computeKNN(vector<Sample> trainingValues, const string& testingPath)-> void
 
 auto userKNN(vector<Sample> trainingValues)-> void
 {
+    if (trainingValues.empty())
+    {
+        cout << "Training dataset is empty.\n";
+        return;
+    }
+
     vector<Sample> userValues = {{}};
     double input;
 
@@ -272,7 +310,7 @@ auto userKNN(vector<Sample> trainingValues)-> void
     normalize(userValues, trainingValues);
     normalize(trainingValues, trainingValues);
 
-    const int k = getK();
+    const int k = getValidK(trainingValues.size());
 
     const string prediction = getPrediction(k, userValues.at(0).attributes, trainingValues);
     cout << prediction << endl;
@@ -283,6 +321,12 @@ auto perceptron(vector<Sample> trainingValues, const string& targetLabel)-> void
     ifstream testingFile("../iris_test.txt");
     vector<Sample> testingValues;
     getSamples(testingValues, testingFile);
+
+    if (trainingValues.empty() || testingValues.empty())
+    {
+        cout << "Training or testing dataset is empty.\n";
+        return;
+    }
 
     normalize(testingValues, trainingValues);
     normalize(trainingValues, trainingValues);
@@ -303,6 +347,12 @@ auto perceptron(vector<Sample> trainingValues, const string& targetLabel)-> void
 
 auto userPerceptron(vector<Sample> trainingValues, const string& targetLabel)-> void
 {
+    if (trainingValues.empty())
+    {
+        cout << "Training dataset is empty.\n";
+        return;
+    }
+
     vector<Sample> userValues = {{}};
     double input;
 
@@ -361,6 +411,11 @@ auto readInput()-> void
     ifstream trainingFile(trainingPath);
     vector<Sample> trainingValues;
     getSamples(trainingValues, trainingFile);
+    if (trainingValues.empty())
+    {
+        cout << "Could not load training data from " << trainingPath << "\n";
+        return;
+    }
 
     while (true)
     {
@@ -388,4 +443,5 @@ auto readInput()-> void
 auto main()-> int
 {
     readInput();
+    return 0;
 }
